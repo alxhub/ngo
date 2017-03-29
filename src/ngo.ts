@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as ts from 'typescript';
+const MagicString = require('magic-string');
 
-export function scrubFile(file: string, name: string): string {
-  let contents = fs.readFileSync(file).toString();
+export function scrubFile(file: string, name: string, res: string): {contents: string, sourceMap: any} {
+  let contents = new MagicString(fs.readFileSync(file).toString());
 
   const options: ts.CompilerOptions = {
     allowJs: true,
@@ -43,14 +44,16 @@ export function scrubFile(file: string, name: string): string {
     ts.forEachChild(source, helper);
   }
 
-  console.log('LOG', name, `processed ${nodes.length} nodes`);
-
   nodes.forEach(node => {
     const commaOffset = (node as any)._comma ? 1 : 0;
-    contents = replaceSubstr(contents, node.getStart(), node.getEnd() + commaOffset);
+    replaceSubstr(contents, node.getStart(), node.getEnd() + commaOffset);
   });
 
-  return contents;
+  return {contents: contents.toString(), sourceMap: contents.generateMap({
+    source: res,
+    file: res,
+    hires: true,
+  })};
 }
 
 function isDecorationAssignment(node: ts.ExpressionStatement, decorate: ts.VariableDeclaration, checker: ts.TypeChecker): boolean {
@@ -264,18 +267,8 @@ function nodeIsDecorate(node: ts.Node, decorate: ts.VariableDeclaration, checker
     .some(spec => spec == decorate);
 }
 
-
-function repeatSpace(count: number) {
-  let space = '';
-  for (let i = 0; i < count; i++) {
-    space += ' ';
-  }
-  return space;
-}
-
-function replaceSubstr(initial: string, begin: number, end: number): string {
-  const before = initial.substring(0, begin);
-  const piece = initial.substring(begin, end);
-  const after = initial.substring(end);
-  return before + piece.replace(/[^ \t\r\n]/g, ' ') + after;
+function replaceSubstr(initial, begin: number, end: number): void {
+  let piece = initial.slice(begin, end).toString();
+  piece = piece.replace(/[^ \t\r\n]/g, ' ');
+  initial.overwrite(begin, end, piece);
 }
