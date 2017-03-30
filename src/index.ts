@@ -4,7 +4,10 @@ import * as ts from 'typescript';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import {scrubFile} from './ngo';
 const tmp = require('tmp');
-module.exports = function(content: string, inMap: string) {
+module.exports = function(content: string, inMap) {
+  if (typeof inMap === 'string') {
+    inMap = JSON.parse(inMap);
+  }
   // if (!inMap) {
   //   if (fs.existsSync(`${this.resourcePath}.map`)) {
   //     inMap = fs.readFileSync(`${this.resourcePath}.map`).toString();
@@ -26,6 +29,6 @@ module.exports = function(content: string, inMap: string) {
   const inMapConsumer = new SourceMapConsumer(inMap);
   const outMapConsumer = new SourceMapConsumer(sourceMap);
   const map = SourceMapGenerator.fromSourceMap(inMapConsumer);
-  map.applySourceMap(outMapConsumer, JSON.parse(inMap).source);
+  map.applySourceMap(outMapConsumer, inMap.source);
   this.callback(null, contents, map.toString());
 }
